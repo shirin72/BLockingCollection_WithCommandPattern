@@ -4,6 +4,7 @@
     {
         private readonly Func<Task<T>> action;
         private readonly TaskCompletionSource<T> taskCompletionSource;
+        public Task<T> Completion => taskCompletionSource.Task;
         public QueueItem(Func<Task<T>> action)
         {
             this.action = action;

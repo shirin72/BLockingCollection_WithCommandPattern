@@ -5,48 +5,24 @@ public class Program
 {
     public async static Task Main(string[] args)
     {
-        var blockingCollection = new BlockingCollection<ICommand>();
+        var queue = new BlockingQueue();
 
         var taskList = new List<Task>();
         int j = 0;
-        taskList.Add(Task.Run(() =>
+        
+        taskList.Add(Task.Run(async () =>
         {
-            var increment = Interlocked.Increment(ref j);
-            var func = () => Task.FromResult(increment + 5);
-            blockingCollection.Add(new QueueItem<int>(func));
-        })
-        );
-
-        taskList.Add(Task.Run(() =>
+            await queue.ExecuteAsync(() => Task.FromResult(Interlocked.Increment(ref j) + 5));
+        }));
+        
+        taskList.Add(Task.Run(async () =>
         {
-            var increment = Interlocked.Increment(ref j);
-            var func = () => Task.FromResult(increment + 5);
-            blockingCollection.Add(new QueueItem<int>(func));
-        })
-       );
+            await queue.ExecuteAsync(() => Task.FromResult(Interlocked.Increment(ref j) - 5));
+        }));
 
-        taskList.Add(Task.WhenAll(taskList).ContinueWith(t => blockingCollection.CompleteAdding()));
+        var allTasks=new List<Task>(taskList);
+        allTasks.Add(Task.WhenAll(taskList).ContinueWith(async t => await queue.DisposeAsync()));
 
-        taskList.Add(Task.Run(() =>
-        {
-            try
-            {
-                while (!blockingCollection.IsCompleted)
-                {
-                    var result = blockingCollection.Take();
-                    var result1=result.Execute();
-                    Console.WriteLine(result1.Result);
-                }
-            }
-            catch
-            {
-
-            }
-
-        })
-        );
-        await Task.WhenAll(taskList.ToArray());
-        //Console.WriteLine("Count: " + blockingCollection.Count);
-        //Console.WriteLine("Hello World");
+        await Task.WhenAll(allTasks.ToArray());
     }
 }
